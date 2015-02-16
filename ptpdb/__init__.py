@@ -27,6 +27,7 @@ from prompt_toolkit.validation import Validator
 from ptpython.completer import PythonCompleter
 from ptpython.key_bindings import load_python_bindings
 from ptpython.python_input import PythonCLISettings , PythonCommandLineInterface
+from ptpython.ipython import IPythonCommandLineInterface, InteractiveShellEmbed
 from ptpython.utils import document_is_multiline_python
 from ptpython.validator import PythonValidator
 
@@ -76,7 +77,7 @@ class DynamicValidator(Validator):
 
 
 class PtPdb(pdb.Pdb):
-    def __init__(self):
+    def __init__(self, ipython=False):
         pdb.Pdb.__init__(self)
 
         # Cache for the grammar.
@@ -101,30 +102,61 @@ class PtPdb(pdb.Pdb):
         #                 return True
         #     return False
 
-        self.cli = PythonCommandLineInterface(
-                style=PdbStyle,
-                get_locals=lambda: self.curframe.f_locals,
-                get_globals=lambda: self.curframe.f_globals,
-                _completer=DynamicCompleter(lambda: self.completer),
-                _validator=DynamicValidator(lambda: self.validator),
-                _python_prompt_control=PdbLeftMargin(self.python_cli_settings,
-                                                     self._get_current_pdb_commands()),
-                _extra_buffers={'source_code': Buffer()},
-                _extra_buffer_processors=[CompletionHint()],
-                _extra_sidebars=[
-                    HSplit([
-                        FileLocationToolbar(weakref.ref(self)),
-                        Window(
-                            BufferControl(
-                                buffer_name='source_code',
-                                lexer=PythonLexer,
+        shell = InteractiveShellEmbed.instance()
+
+        if ipython:
+            self.cli = IPythonCommandLineInterface(
+                    shell,
+                    style=PdbStyle,
+                    get_locals=lambda: self.curframe.f_locals,
+                    get_globals=lambda: self.curframe.f_globals,
+                    _completer=DynamicCompleter(lambda: self.completer),
+                    _validator=DynamicValidator(lambda: self.validator),
+                    _python_prompt_control=PdbLeftMargin(self.python_cli_settings,
+                                                         self._get_current_pdb_commands(),
+                                                         ipython=True,
+                                                         prompt_manager=shell.prompt_manager),
+                    _extra_buffers={'source_code': Buffer()},
+                    _extra_buffer_processors=[CompletionHint()],
+                    _extra_sidebars=[
+                        HSplit([
+                            FileLocationToolbar(weakref.ref(self)),
+                            Window(
+                                BufferControl(
+                                    buffer_name='source_code',
+                                    lexer=PythonLexer,
+                                ),
+                                filter=~IsDone(),
                             ),
-                            filter=~IsDone(),
-                        ),
-                        PdbShortcutsToolbar(weakref.ref(self)),
-                    ]),
-                ],
-        )
+                            PdbShortcutsToolbar(weakref.ref(self)),
+                        ]),
+                    ],
+            )
+        else:
+            self.cli = PythonCommandLineInterface(
+                    style=PdbStyle,
+                    get_locals=lambda: self.curframe.f_locals,
+                    get_globals=lambda: self.curframe.f_globals,
+                    _completer=DynamicCompleter(lambda: self.completer),
+                    _validator=DynamicValidator(lambda: self.validator),
+                    _python_prompt_control=PdbLeftMargin(self.python_cli_settings,
+                                                         self._get_current_pdb_commands()),
+                    _extra_buffers={'source_code': Buffer()},
+                    _extra_buffer_processors=[CompletionHint()],
+                    _extra_sidebars=[
+                        HSplit([
+                            FileLocationToolbar(weakref.ref(self)),
+                            Window(
+                                BufferControl(
+                                    buffer_name='source_code',
+                                    lexer=PythonLexer,
+                                ),
+                                filter=~IsDone(),
+                            ),
+                            PdbShortcutsToolbar(weakref.ref(self)),
+                        ]),
+                    ],
+            )
             # XXX: TODO: add CompletionHint() after the input!!
             # XXX: TODO: Add PDB key bindings again.
 
@@ -259,5 +291,5 @@ class PtPdb(pdb.Pdb):
 
         return ''.join(result)
 
-def set_trace():
-    PtPdb().set_trace(sys._getframe().f_back)
+def set_trace(ipython=False):
+    PtPdb(ipython).set_trace(sys._getframe().f_back)

@@ -13,7 +13,8 @@ class PdbLeftMargin(TokenListControl):
     Show "(pdb)" when we have a pdb command or '>>>' when the user types a
     Python command.
     """
-    def __init__(self, settings, pdb_commands):
+    def __init__(self, settings, pdb_commands,
+                 ipython=False, prompt_manager=None):
         def get_tokens(cli):
             _, buffer = current_python_buffer(cli, settings)
 
@@ -24,6 +25,9 @@ class PdbLeftMargin(TokenListControl):
 
                 if any(c.startswith(command) for c in pdb_commands):
                     return [(Token.Prompt, '(pdb) ')]
+                elif ipython:
+                    text = prompt_manager.render('in', color=False, just=False)
+                    return [(Token.Layout.Prompt, text)]
                 else:
                     return [(Token.Prompt, '  >>> ')]
             else:
