@@ -158,6 +158,15 @@ class PtPdb(pdb.Pdb):
                 if self.use_rawinput:
                     line = self._get_input()
 
+            # This implements "smart command mode"
+            # For single character variable names that are also commands,
+            # it will default to printing the variable.
+            if line and hasattr(self, 'do_' + line) and (
+                    line in self.curframe.f_globals or
+                    line in self.curframe.f_locals or
+                    line.startswith('=')):
+                line = '!' + line
+
             line = self.precmd(line)
             stop = self.onecmd(line)
             stop = self.postcmd(stop, line)
